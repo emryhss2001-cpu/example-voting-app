@@ -1,0 +1,41 @@
+name: Capstone CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  build-and-scan-vote:
+    name: Build and scan voting app
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build production vote image
+        run: docker build --target final -t voting-app-vote:ci ./vote
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: voting-app-vote:ci
+          format: table
+          output: trivy-results.txt
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+
+      - name: Upload Trivy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-vote-report
+          path: trivy-results.txt
+          if-no-files-found: warn
+          retention-days: 14

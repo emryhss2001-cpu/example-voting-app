@@ -1,0 +1,67 @@
+services:
+  vote:
+    image: voting-app-vote:production
+    ports:
+      - "8082:80"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - front-tier
+      - back-tier
+
+  result:
+    image: example-voting-app-result:latest
+    ports:
+      - "8083:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - front-tier
+      - back-tier
+
+  worker:
+    image: example-voting-app-worker:latest
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - back-tier
+
+  redis:
+    image: redis:alpine
+    volumes:
+      - "./healthchecks:/healthchecks:ro"
+    healthcheck:
+      test: ["CMD", "/healthchecks/redis.sh"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - back-tier
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - "voting-production-db-data:/var/lib/postgresql/data"
+      - "./healthchecks:/healthchecks:ro"
+    healthcheck:
+      test: ["CMD", "/healthchecks/postgres.sh"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - back-tier
+
+volumes:
+  voting-production-db-data:
+
+networks:
+  front-tier:
+  back-tier:
